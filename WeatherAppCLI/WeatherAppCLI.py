@@ -6,7 +6,7 @@ weather in London from OpenWeather and can show it in the CLI.
 
 @author James Bird-Sycamore
 @created 04/09/2024
-@updated 04/09/2024
+@updated 10/09/2024
 '''
 
 import argparse
@@ -17,7 +17,11 @@ from urllib import error, parse, request
 
 import style
 
-BASE_WEATHER_API_API = 'http://api.openweathermap.org/data/2.5/weather'
+CURRENT_WEATHER_API_URL = 'http://api.openweathermap.org/data/2.5/weather'
+FORECAST_WEATHER_API_URL = "http://api.openweathermap.org/data/2.5/forecast"
+
+# Format Lines
+LINE = '-'*20*3 # creates a long line for seperating data
 
 # Weather Condition Codes
 # https://openweathermap.org/weather-conditions#Weather-Condition-Codes-2
@@ -52,14 +56,17 @@ def read_user_cli_args():
     Returns:
         argparse.Namespace   
     '''
-    parser = argparse.ArgumentParser(description='Weather app retrieves weather information for a city',
-                                     epilog='Thank you for visiting!')
-    parser.add_argument('city', nargs='+', type=str, help='enter a city name')
-    parser.add_argument('-i', '--imperial', action='store_true', help='display temperature in Farenheit')
 
-    return parser.parse_args()
+    weatherParser = argparse.ArgumentParser(description='weather app retrieves weather information for a city',
+                                     epilog='thank you for visiting!')
+    weatherParser.add_argument('city', nargs='+', type=str, help='enter a city name')
+    weatherParser.add_argument('-i', '--imperial', action='store_true', help='display temperature in farenheit')
+    weatherParser.add_argument("-c", "--current", action="store_true", help='view current weather')
+    weatherParser.add_argument("-f", "--forecast", action="store_true", help="view forecast weather")
 
-def build_weather_query(city_input, imperial=False):
+    return weatherParser.parse_args()
+
+def build_weather_query(city_input, imperial=False, weather_type='current'):
     '''
     Builds the URL for an API request to OpenWeather's API.
 
@@ -73,10 +80,18 @@ def build_weather_query(city_input, imperial=False):
     cityName = ' '.join(city_input)
     url_encoded_cityName = parse.quote_plus(cityName)
     units = 'imperial' if imperial else 'metric'
-    url = (
-        f'{BASE_WEATHER_API_API}?q={url_encoded_cityName}'
-        f'&units={units}&appid={api_key}'
-        )
+    if weather_type == 'current':
+        url = (
+            f'{CURRENT_WEATHER_API_URL}?q={url_encoded_cityName}'
+            f'&units={units}&appid={api_key}'
+            )
+    elif weather_type == 'forecast':
+        url = (
+            f'{FORECAST_WEATHER_API_URL}?q={url_encoded_cityName}'
+            f'&units={units}&appid={api_key}'
+            )
+    else:
+        sys.exit("something went wrong with url")
     return url
 
 def get_weather_data(query_url):
@@ -106,7 +121,7 @@ def get_weather_data(query_url):
     except json.JSONDecodeError:
         sys.exit("couldn't read the server response.")
 
-def display_weather_info(weather_data, imperial=False):
+def display_current_weather_info(weather_data, imperial=False):
     '''
     Displays the weather information from the data in a readable format.
 
@@ -120,8 +135,12 @@ def display_weather_info(weather_data, imperial=False):
     weather_id = weather_data["weather"][0]["id"]
     weatherDescription = weather_data['weather'][0]['description']
     temperature = weather_data['main']['temp']
+    feels_like = weather_data['main']['feels_like']
     windSpeed = weather_data['wind']['speed']
+    windSpeedKM = int(windSpeed*3.6) # multiplication to convert m/s to km/hr
     wind_deg = weather_data['wind']['deg']
+
+    print(f"{LINE}", end="\n")
 
     # print city
     style.change_colour(style.REVERSE)
@@ -139,12 +158,73 @@ def display_weather_info(weather_data, imperial=False):
     # print wind
     windSymbol = _select_wind_display_params(wind_deg)
     print(f"\n {windSymbol}", end=" ")
-    print(f"\t{windSpeed}{'mph' if imperial else 'm/s'}", end=" ")
+    print(f"\t{windSpeedKM}{'mph' if imperial else 'km/hr'}", end=" ")
 
     # print temperature
-    print(f"\n ({temperature} {'F' if imperial else 'C'})")
+    print(f"\n Currently: {temperature} {'F' if imperial else '°C'}",
+          f"\t Feels Like: {feels_like} {'F' if imperial else '°C'}"
+          )
+
+    print(f"{LINE}", end="\n")
+
+def display_forecast_weather_info(weather_data, imperial=False):
+    '''
+    Displays the weather information from the data in a readable format.
+
+    Args:
+        weather_data (dict): API response
+        imperial (bool): Fahrenhiet units when true
+
+    More information at https://openweathermap.org/current#name
+    '''
+    city_name = weather_data['city']['name']
+    weather_data_list = weather_data['list']
+
+    print(f"{LINE}", end="\n")
+
+    for point in weather_data_list:
+        dt_text = point['dt_txt']
+        temperature = point['main']['temp']
+        feels_like = point['main']['feels_like']
+        weather_id = point['weather'][0]['id']
+        weather = point['weather'][0]['description']
+        wind_speed = point['wind']['speed']
+        windSpeedKM = int(wind_speed * 3.6) # multiplication to convert m/s to km/hr
+        wind_deg = point['wind']['deg']
+
+        # print city
+        style.change_colour(style.REVERSE)
+        print(f"{city_name:^{style.PADDING}}", end=" ")
+        style.change_colour(style.RESET)
+
+        # print date and time
+        print(f" {dt_text:^{style.PADDING}}", end=" ")
+
+        weatherSymbol, colour = _select_weather_display_params(weather_id)
+
+        # print weather description
+        style.change_colour(colour)
+        print(f"\t{weatherSymbol}", end=" ")
+        print(f"{weather.capitalize():^{style.PADDING}}", end=" ")
+        style.change_colour(style.RESET)
+
+        # print wind
+        windSymbol = _select_wind_display_params(wind_deg)
+        print(f"\n {windSymbol}", end=" ")
+        print(f"\t{windSpeedKM}{'mph' if imperial else 'km/hr'}", end=" ")
+
+        # print temperature
+        print(f"\n Currently: {temperature} {'F' if imperial else '°C'}",
+              f"\t Feels Like: {feels_like} {'F' if imperial else '°C'}"
+              )
+
+        print(f"{LINE}", end="\n")
+
 
 def _select_weather_display_params(weather_id):
+    '''
+    Takes the weather ID and sets the parameters for the print style.
+    '''
     if weather_id in THUNDERSTORM:
         displayParams = ("⛈️", style.RED)
     elif weather_id in DRIZZLE:
@@ -164,12 +244,15 @@ def _select_weather_display_params(weather_id):
     return displayParams
 
 def _select_wind_display_params(wind_deg):
+    '''
+    Takes the wind Degrees and sets the wind direction for the print style
+    '''
     if wind_deg in NORTH:
         displayWind = "⬆️ Northerly"
     elif wind_deg in NORTHEAST:
         displayWind = "↗️ North Easterly"
     elif wind_deg in EAST:
-        displayWind = "➡ Easterly"
+        displayWind = "➡️ Easterly"
     elif wind_deg in SOUTHEAST:
         displayWind = "↘️ South Easterly"
     elif wind_deg in SOUTH:
@@ -185,6 +268,20 @@ def _select_wind_display_params(wind_deg):
 # Main
 if __name__ == '__main__':
     user_args = read_user_cli_args()
-    query_url = build_weather_query(user_args.city, user_args.imperial)
+
+    if user_args.current:
+        weather_type = 'current'
+    elif user_args.forecast:
+        weather_type = 'forecast'
+    else:
+        weather_type = 'current'
+
+    query_url = build_weather_query(user_args.city, user_args.imperial, weather_type)
     weather_data = get_weather_data(query_url)
-    display_weather_info(weather_data, user_args.imperial)
+
+    if weather_type == 'current':
+        display_current_weather_info(weather_data, user_args.imperial)
+    elif weather_type == 'forecast':
+        display_forecast_weather_info(weather_data, user_args.imperial)
+    else:
+        display_current_weather_info(weather_data, user_args.imperial, weather_type)
