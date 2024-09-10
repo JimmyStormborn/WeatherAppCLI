@@ -185,7 +185,10 @@ def _print_weather_data(weather_data, imperial):
     weather_id = weather_data['weather'][0]['id']
     weather = weather_data['weather'][0]['description']
     wind_speed = weather_data['wind']['speed']
-    windSpeedKM = int(wind_speed * 3.6) # multiplication to convert m/s to km/hr
+    if imperial:
+        windSpeedAdjust = int(wind_speed) # multiplication to convert m/s to km/hr
+    else:
+        windSpeedAdjust = int(wind_speed * 3.6) # multiplication to convert m/s to km/hr
     wind_deg = weather_data['wind']['deg']
 
     weatherSymbol, colour = _select_weather_display_params(weather_id)
@@ -199,11 +202,11 @@ def _print_weather_data(weather_data, imperial):
     # print wind
     windSymbol = _select_wind_display_params(wind_deg)
     print(f"\n {windSymbol:^{style.PADDING}}", end=" ")
-    print(f"\t{windSpeedKM}{'mph' if imperial else 'km/hr'}", end=" ")
+    print(f"\t{windSpeedAdjust}{'mph' if imperial else 'km/hr'}", end=" ")
 
     # print temperature
-    print(f"\n Currently: {temperature} {'F' if imperial else '°C'}",
-          f"\t Feels Like: {feels_like} {'F' if imperial else '°C'}"
+    print(f"\n Currently: {temperature} {'°F' if imperial else '°C'}",
+          f"\t Feels Like: {feels_like} {'°F' if imperial else '°C'}"
           )
 
     print(f"{LINE}", end="\n")
