@@ -109,9 +109,9 @@ def get_weather_data(query_url):
     try:
         response = request.urlopen(query_url)
     except error.HTTPError as http_error:
-        if http_error == 401: # 401 - Unauthorized
+        if http_error.code == 401: # 401 - Unauthorized
             sys.exit("Access denied. Check API key")
-        elif http_error == 404: # 404 - Not Found
+        elif http_error.code == 404: # 404 - Not Found
             sys.exit("Can't find weather data for this city.")
         else:
             sys.exit(f"Something went wrong. {http_error.code}")
