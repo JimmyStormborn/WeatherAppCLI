@@ -14,6 +14,7 @@ import json
 import sys
 from configparser import ConfigParser
 from urllib import error, parse, request
+from datetime import datetime
 
 import style
 
@@ -34,7 +35,8 @@ CLEAR = range(800, 801)
 CLOUDY = range(801, 900)
 
 # Wind Direction Codes
-SOUTH = range(-15, 15)
+SOUTH_1 = range(0, 15)
+SOUTH_2 = range(345, 360)
 SOUTHWEST = range(15, 75)
 WEST = range(75, 105)
 NORTHWEST = range(105, 165)
@@ -132,13 +134,7 @@ def display_current_weather_info(weather_data, imperial=False):
     More information at https://openweathermap.org/current#name
     '''
     city = weather_data['name']
-    weather_id = weather_data["weather"][0]["id"]
-    weatherDescription = weather_data['weather'][0]['description']
-    temperature = weather_data['main']['temp']
-    feels_like = weather_data['main']['feels_like']
-    windSpeed = weather_data['wind']['speed']
-    windSpeedKM = int(windSpeed*3.6) # multiplication to convert m/s to km/hr
-    wind_deg = weather_data['wind']['deg']
+    current_time = datetime.now()
 
     print(f"{LINE}", end="\n")
 
@@ -147,25 +143,10 @@ def display_current_weather_info(weather_data, imperial=False):
     print(f"{city:^{style.PADDING}}", end=" ")
     style.change_colour(style.RESET)
 
-    weatherSymbol, colour = _select_weather_display_params(weather_id)
+    # print date and time
+    print(f" {current_time:%Y-%m-%d %H:%M:%S}", end=" ")
 
-    # print weather description
-    style.change_colour(colour)
-    print(f"\t{weatherSymbol}", end=" ")
-    print(f"{weatherDescription.capitalize():^{style.PADDING}}", end=" ")
-    style.change_colour(style.RESET)
-
-    # print wind
-    windSymbol = _select_wind_display_params(wind_deg)
-    print(f"\n {windSymbol}", end=" ")
-    print(f"\t{windSpeedKM}{'mph' if imperial else 'km/hr'}", end=" ")
-
-    # print temperature
-    print(f"\n Currently: {temperature} {'F' if imperial else '°C'}",
-          f"\t Feels Like: {feels_like} {'F' if imperial else '°C'}"
-          )
-
-    print(f"{LINE}", end="\n")
+    _print_weather_data(weather_data, imperial)
 
 def display_forecast_weather_info(weather_data, imperial=False):
     '''
@@ -177,53 +158,59 @@ def display_forecast_weather_info(weather_data, imperial=False):
 
     More information at https://openweathermap.org/current#name
     '''
-    city_name = weather_data['city']['name']
+    city = weather_data['city']['name']
     weather_data_list = weather_data['list']
 
     print(f"{LINE}", end="\n")
 
     for point in weather_data_list:
         dt_text = point['dt_txt']
-        temperature = point['main']['temp']
-        feels_like = point['main']['feels_like']
-        weather_id = point['weather'][0]['id']
-        weather = point['weather'][0]['description']
-        wind_speed = point['wind']['speed']
-        windSpeedKM = int(wind_speed * 3.6) # multiplication to convert m/s to km/hr
-        wind_deg = point['wind']['deg']
 
         # print city
         style.change_colour(style.REVERSE)
-        print(f"{city_name:^{style.PADDING}}", end=" ")
+        print(f"{city:^{style.PADDING}}", end=" ")
         style.change_colour(style.RESET)
-
+        
         # print date and time
         print(f" {dt_text:^{style.PADDING}}", end=" ")
 
-        weatherSymbol, colour = _select_weather_display_params(weather_id)
+        _print_weather_data(point, imperial) # print remaining data
 
-        # print weather description
-        style.change_colour(colour)
-        print(f"\t{weatherSymbol}", end=" ")
-        print(f"{weather.capitalize():^{style.PADDING}}", end=" ")
-        style.change_colour(style.RESET)
+def _print_weather_data(weather_data, imperial):
+    '''
+    Prints the weather data including temperature, weather, and wind.
+    '''
+    temperature = weather_data['main']['temp']
+    feels_like = weather_data['main']['feels_like']
+    weather_id = weather_data['weather'][0]['id']
+    weather = weather_data['weather'][0]['description']
+    wind_speed = weather_data['wind']['speed']
+    windSpeedKM = int(wind_speed * 3.6) # multiplication to convert m/s to km/hr
+    wind_deg = weather_data['wind']['deg']
 
-        # print wind
-        windSymbol = _select_wind_display_params(wind_deg)
-        print(f"\n {windSymbol}", end=" ")
-        print(f"\t{windSpeedKM}{'mph' if imperial else 'km/hr'}", end=" ")
+    weatherSymbol, colour = _select_weather_display_params(weather_id)
 
-        # print temperature
-        print(f"\n Currently: {temperature} {'F' if imperial else '°C'}",
-              f"\t Feels Like: {feels_like} {'F' if imperial else '°C'}"
-              )
+    # print weather description
+    style.change_colour(colour)
+    print(f"\t{weatherSymbol}", end=" ")
+    print(f"{weather.capitalize():^{style.PADDING}}", end=" ")
+    style.change_colour(style.RESET)
 
-        print(f"{LINE}", end="\n")
+    # print wind
+    windSymbol = _select_wind_display_params(wind_deg)
+    print(f"\n {windSymbol:^{style.PADDING}}", end=" ")
+    print(f"\t{windSpeedKM}{'mph' if imperial else 'km/hr'}", end=" ")
 
+    # print temperature
+    print(f"\n Currently: {temperature} {'F' if imperial else '°C'}",
+          f"\t Feels Like: {feels_like} {'F' if imperial else '°C'}"
+          )
+
+    print(f"{LINE}", end="\n")
 
 def _select_weather_display_params(weather_id):
     '''
-    Takes the weather ID and sets the parameters for the print style.
+    Takes the weather id and sets the parameters for the print style.
     '''
     if weather_id in THUNDERSTORM:
         displayParams = ("⛈️", style.RED)
@@ -245,7 +232,7 @@ def _select_weather_display_params(weather_id):
 
 def _select_wind_display_params(wind_deg):
     '''
-    Takes the wind Degrees and sets the wind direction for the print style
+    Takes the wind degrees and sets the wind direction for the print style
     '''
     if wind_deg in NORTH:
         displayWind = "⬆️ Northerly"
@@ -255,12 +242,16 @@ def _select_wind_display_params(wind_deg):
         displayWind = "➡️ Easterly"
     elif wind_deg in SOUTHEAST:
         displayWind = "↘️ South Easterly"
-    elif wind_deg in SOUTH:
+    elif wind_deg in SOUTH_1:
+        displayWind = "⬇️ Southerly"
+    elif wind_deg in SOUTH_2:
         displayWind = "⬇️ Southerly"
     elif wind_deg in SOUTHWEST:
         displayWind = "↙️ South Westerly"
     elif wind_deg in WEST:
         displayWind = "⬅️ Easterly"
+    elif wind_deg in NORTHWEST:
+        displayWind = "↖️ North Westerly"
     else:
         displayWind = "?"
     return displayWind
@@ -269,6 +260,7 @@ def _select_wind_display_params(wind_deg):
 if __name__ == '__main__':
     user_args = read_user_cli_args()
 
+    # sets type of weather data
     if user_args.current:
         weather_type = 'current'
     elif user_args.forecast:
