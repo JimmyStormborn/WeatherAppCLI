@@ -11,11 +11,14 @@ Using the API from Open Weather https://openweathermap.org/, the application is 
 
 ## What it Does
 Displays the current weather for the city inputted, defaults in metric units, option for imperial units.
+
 "python WeatherAppCLI.py city -c" or "python WeatherAppCLI.py -c -i"
 
 ![Weather App current weather](/Photos/weather_app_current.png)
 
 Displays the forecast weather for the next 5 days in 3 hour increments, defaults in metric units, option for imperial units.
+
+"python WeatherAppCLI.py {city} -f" or "python WeatherAppCLI.py -f -i"
 
 ![Weather App forecast weather 1](/Photos/weather_app_forecast_1.png)
 ![Weather App forecast weather 2](/Photos/weather_app_forecast_2.png)
@@ -24,10 +27,13 @@ Displays the forecast weather for the next 5 days in 3 hour increments, defaults
 
 ## Resources
 OpenWeather
+
 https://openweathermap.org/current#name
+
 https://openweathermap.org/forecast5
 
 https://realpython.com/build-a-python-weather-app-cli/
+
 Helpful tutorial
 
 ### Created by
